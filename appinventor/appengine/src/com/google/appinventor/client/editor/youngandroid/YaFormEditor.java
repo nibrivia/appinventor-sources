@@ -13,6 +13,7 @@ import com.google.appinventor.client.Ode;
 import com.google.appinventor.client.OdeAsyncCallback;
 import com.google.appinventor.client.boxes.AssetListBox;
 import com.google.appinventor.client.boxes.PaletteBox;
+import com.google.appinventor.client.boxes.DebuggerBox;
 import com.google.appinventor.client.boxes.PropertiesBox;
 import com.google.appinventor.client.boxes.SourceStructureBox;
 import com.google.appinventor.client.editor.ProjectEditor;
@@ -625,6 +626,8 @@ public final class YaFormEditor extends SimpleEditor implements FormChangeListen
     // Show the assets box.
     AssetListBox assetListBox = AssetListBox.getAssetListBox();
     assetListBox.setVisible(true);
+
+    DebuggerBox.getDebuggerBox().setVisible(false);
 
     // Set the properties box's content.
     PropertiesBox propertiesBox = PropertiesBox.getPropertiesBox();

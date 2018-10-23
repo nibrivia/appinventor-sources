@@ -819,6 +819,12 @@ public interface OdeMessages extends Messages {
   @Description("Caption for palette box.")
   String paletteBoxCaption();
 
+  // Used in boxes/DebuggerBox.java
+
+  @DefaultMessage("Debugger")
+  @Description("Caption for debugger box.")
+  String debuggerBoxCaption();
+
   // Used in boxes/ProjectListBox.java
 
   @DefaultMessage("My Projects")
@@ -5544,7 +5550,7 @@ public interface OdeMessages extends Messages {
   @DefaultMessage("UriEncode")
   @Description("")
   String UriEncodeMethods();
-  
+
   @DefaultMessage("UriDecode")
   @Description("")
   String UriDecodeMethods();

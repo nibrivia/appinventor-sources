@@ -11,6 +11,7 @@ import com.google.appinventor.client.OdeAsyncCallback;
 import com.google.appinventor.client.boxes.AssetListBox;
 import com.google.appinventor.client.boxes.BlockSelectorBox;
 import com.google.appinventor.client.boxes.PaletteBox;
+import com.google.appinventor.client.boxes.DebuggerBox;
 import com.google.appinventor.client.editor.FileEditor;
 import com.google.appinventor.client.editor.simple.SimpleComponentDatabase;
 import com.google.appinventor.client.editor.simple.components.FormChangeListener;
@@ -218,6 +219,9 @@ public final class YaBlocksEditor extends FileEditor
       paletteBox.setContent(palettePanel);
     }
     PaletteBox.getPaletteBox().setVisible(false);
+
+    DebuggerBox debuggerBox = DebuggerBox.getDebuggerBox();
+    DebuggerBox.getDebuggerBox().setVisible(true);
 
     // Update the source structure explorer with the tree of this form's components.
     MockForm form = getForm();
