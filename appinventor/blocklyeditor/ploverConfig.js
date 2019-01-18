@@ -92,6 +92,7 @@
     //finally, include any of our own .js file in any order
     "./src/events.js",
     "./src/blocklyeditor.js",
+    "./src/debugger.js",
     './src/typeblock.js',
     "./src/blockly.js",
     "./src/events.js",

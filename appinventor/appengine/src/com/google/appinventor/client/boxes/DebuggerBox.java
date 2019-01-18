@@ -10,29 +10,29 @@ import static com.google.appinventor.client.Ode.MESSAGES;
 import com.google.appinventor.client.widgets.boxes.Box;
 
 /**
- * Box implementation for palette panels.
+ * Box implementation for debugger panel
  *
  */
 public final class DebuggerBox extends Box {
 
-  // Singleton palette box instance
+  // Singleton debugger box instance
   private static final DebuggerBox INSTANCE = new DebuggerBox();
 
   /**
-   * Return the palette box.
+   * Return the debugger box.
    *
-   * @return  palette box
+   * @return debugger box
    */
   public static DebuggerBox getDebuggerBox() {
     return INSTANCE;
   }
 
   /**
-   * Creates new palette box.
+   * Creates new debugger box.
    */
   private DebuggerBox() {
     super(MESSAGES.debuggerBoxCaption(),
-        150,       // height
+        300,       // height
         false,     // minimizable
         false,     // removable
         false,     // startMinimized

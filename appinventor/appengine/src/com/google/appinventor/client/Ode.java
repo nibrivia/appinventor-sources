@@ -30,6 +30,7 @@ import com.google.appinventor.client.boxes.ViewerBox;
 import com.google.appinventor.client.editor.EditorManager;
 import com.google.appinventor.client.editor.FileEditor;
 import com.google.appinventor.client.editor.youngandroid.BlocklyPanel;
+import com.google.appinventor.client.editor.youngandroid.DebuggerPanel;
 import com.google.appinventor.client.editor.youngandroid.TutorialPanel;
 import com.google.appinventor.client.explorer.commands.ChainableCommand;
 import com.google.appinventor.client.explorer.commands.CommandRegistry;
@@ -1060,6 +1061,9 @@ public class Ode implements EntryPoint {
     Box debuggerbox = DebuggerBox.getDebuggerBox();
     debuggerbox.setWidth("240px");
     workColumns.add(debuggerbox);
+    //DebuggerPanel debuggerArea = new DebuggerPanel();
+    //debuggerArea.setWidth("240px");
+    //workColumns.add(debuggerArea);
 
     Box propertiesbox = PropertiesBox.getPropertiesBox();
     propertiesbox.setWidth("222px");

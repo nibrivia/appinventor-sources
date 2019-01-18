@@ -177,6 +177,7 @@ public final class YaFormEditor extends SimpleEditor implements FormChangeListen
     palettePanel.setSize("100%", "100%");
     componentDatabaseChangeListeners.add(palettePanel);
 
+
     // Create designProperties, which will be used as the content of the PropertiesBox.
     designProperties = new PropertiesPanel();
     designProperties.setSize("100%", "100%");
