@@ -585,6 +585,11 @@ Blockly.Yail.scrub_ = function(block, code, thisOnly) {
   }*/
   var nextBlock = block.nextConnection && block.nextConnection.targetBlock();
   var nextCode = thisOnly ? "" : this.blockToCode(nextBlock);
+
+  //want top level block
+  if (block.category) {
+    code = "(debug \"" + block.id + "\" " + code + ")";
+  }
   return commentCode + code + nextCode;
 };
 
