@@ -100,7 +100,7 @@ public final class Compiler {
   private static final String BROADCAST_RECEIVERS_TARGET = "broadcastReceivers";
   // Must match ComponentListGenerator.ANDROIDMINSDK_TARGET
   private static final String ANDROIDMINSDK_TARGET = "androidMinSdk";
-  
+
   // TODO(Will): Remove the following target once the deprecated
   //             @SimpleBroadcastReceiver annotation is removed. It should
   //             should remain for the time being because otherwise we'll break
@@ -178,7 +178,7 @@ public final class Compiler {
   private final ConcurrentMap<String, Set<String>> minSdksNeeded =
       new ConcurrentHashMap<String, Set<String>>();
   private final Set<String> uniqueLibsNeeded = Sets.newHashSet();
-  
+
   /**
    * Set of exploded AAR libraries.
    */
@@ -292,13 +292,13 @@ public final class Compiler {
   Map<String,Set<String>> getPermissions() {
     return permissionsNeeded;
   }
-  
+
   // Just used for testing
   @VisibleForTesting
   Map<String, Set<String>> getBroadcastReceivers() {
     return broadcastReceiversNeeded;
   }
-  
+
   // Just used for testing
   @VisibleForTesting
   Map<String, Set<String>> getActivities() {
@@ -423,7 +423,7 @@ public final class Compiler {
       userErrors.print(String.format(ERROR_IN_STAGE, "BroadcastReceivers"));
     }
   }
-  
+
   /*
    * TODO(Will): Remove this method once the deprecated @SimpleBroadcastReceiver
    *             annotation is removed. This should remain for the time being so
@@ -730,13 +730,13 @@ public final class Compiler {
         }
         out.write("    </activity>\n");
       }
-      
+
       // Collect any additional <application> subelements into a single set.
       Set<Map.Entry<String, Set<String>>> subelements = Sets.newHashSet();
       subelements.addAll(activitiesNeeded.entrySet());
       subelements.addAll(broadcastReceiversNeeded.entrySet());
-      
-      
+
+
       // If any component needs to register additional activities or
       // broadcast receivers, insert them into the manifest here.
       if (!subelements.isEmpty()) {
@@ -747,18 +747,18 @@ public final class Compiler {
           }
         }
       }
-  
+
       // TODO(Will): Remove the following legacy code once the deprecated
       //             @SimpleBroadcastReceiver annotation is removed. It should
       //             should remain for the time being because otherwise we'll break
       //             extensions currently using @SimpleBroadcastReceiver.
-      
+
       // Collect any legacy simple broadcast receivers
       Set<String> simpleBroadcastReceivers = Sets.newHashSet();
       for (String componentType : componentBroadcastReceiver.keySet()) {
         simpleBroadcastReceivers.addAll(componentBroadcastReceiver.get(componentType));
       }
-      
+
       // The format for each legacy Broadcast Receiver in simpleBroadcastReceivers is
       // "className,Action1,Action2,..." where the class name is mandatory, and
       // actions are optional (and as many as needed).
@@ -821,7 +821,7 @@ public final class Compiler {
     compiler.generateNativeLibNames();
     compiler.generatePermissions();
     compiler.generateMinSdks();
-  
+
     // TODO(Will): Remove the following call once the deprecated
     //             @SimpleBroadcastReceiver annotation is removed. It should
     //             should remain for the time being because otherwise we'll break
