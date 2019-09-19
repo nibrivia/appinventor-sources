@@ -452,6 +452,9 @@
            (com.google.appinventor.components.runtime.EventDispatcher:makeFullEventName
             componentName eventName))))
 
+       (define ($getBlockStack) :: List[String]
+         stacktrace)
+
        ;; This defines the Simple Form's abstract $define method. The Simple Form
        ;; implementation will call this to cause initialization.
        (define ($define) :: void
@@ -2661,6 +2664,53 @@ list, use the make-yail-list constructor with no arguments.
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;; End Support for REPL
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; Debug Macro
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(define stacktrace :: gnu.lists.LList '())
+
+;; eventually would want to add more than just blockid
+(define (add-to-stacktrace blockid)
+  (set! stacktrace
+        (cons blockid
+              stacktrace)))
+
+(define (remove-from-stacktrace)
+  (set! stacktrace
+        (cdr stacktrace)))
+
+(define (list-copy l)
+  (if (null? l)
+    '()
+    (cons (car l) (list-copy (cdr l)))))
+
+(define-syntax debug
+  (syntax-rules ()
+    ((_ blockid code ...)
+     (if *this-is-the-repl*
+      (begin
+        (add-to-stacktrace blockid)
+        (android-log stacktrace)
+        (try-finally
+         (try-catch
+          (begin code ...)
+          (exception YailRuntimeError
+                     (android-log (exception:getMessage))
+                     (list "NOK"
+                           (exception:getMessage) (list-copy stacktrace)))
+          (exception WrappedException
+                     (android-log (exception:getMessage))
+                     (list "NOK" (exception:getMessage) (list-copy stacktrace))))
+         (remove-from-stacktrace)))
+      (begin code ...)))))
+           ;; finally pop blockid (once block finishes executing, you want to remove blockid) - within the try-catch block
+           ;; do try-finally with the body as a try-catch (finally should happen after try-catch)
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;; End Debug Macro
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define *ui-handler* #!null)

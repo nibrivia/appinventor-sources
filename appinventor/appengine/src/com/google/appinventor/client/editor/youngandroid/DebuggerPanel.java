@@ -45,17 +45,6 @@ import static com.google.appinventor.client.Ode.MESSAGES;
  */
 public class DebuggerPanel extends HTMLPanel {
 
-  public static interface BlocklySource extends JsniBundle {
-    @LibrarySource(value="debugger.js",
-                   prepend="(function(window, document, console){\nthis.goog = goog = top.goog;\n",
-                   postpend="\n}.apply(window, [$wnd, $doc, $wnd.console]));\n" +
-                   "for(var ns in window.goog.implicitNamespaces_) {\n" +
-                   "  if(ns.indexOf('.') !== false) ns = ns.split('.')[0];\n" +
-                   "  top[ns] = window.goog.global[ns];\n" +
-                   "}\nwindow['Blockly'] = top['Blockly'];\nwindow['AI'] = top['AI'];")
-    public void initBlockly();
-  }
-
   // The currently displayed form (project/screen)
   private static String currentForm;
 
@@ -85,7 +74,7 @@ public class DebuggerPanel extends HTMLPanel {
   public DebuggerPanel(YaBlocksEditor blocksEditor, String formName, boolean readOnly) {
     super("");
     getElement().addClassName("svg");
-    getElement().setId(formName);
+    getElement().setId(formName + "-debug");
     this.formName = formName;
     initWorkspace(Long.toString(blocksEditor.getProjectId()), readOnly, LocaleInfo.getCurrentLocale().isRTL());
     OdeLog.log("Created DebuggerPanel for " + formName);

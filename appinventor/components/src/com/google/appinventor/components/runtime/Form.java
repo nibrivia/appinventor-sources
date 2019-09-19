@@ -15,6 +15,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -1781,6 +1782,10 @@ public class Form extends AppInventorCompatActivity
   @Override
   public void $add(AndroidViewComponent component) {
     viewLayout.add(component);
+  }
+
+  public List<String> $getBlockStack() {
+    return Collections.emptyList();
   }
 
   public float deviceDensity(){

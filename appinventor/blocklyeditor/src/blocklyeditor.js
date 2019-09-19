@@ -437,14 +437,13 @@ Blockly.BlocklyEditor['createdebugger'] = function(container, formName, readOnly
   var options = new Blockly.Options({
     'readOnly': readOnly,
     'rtl': rtl,
-    'collapse': true,
-    'scrollbars': true,
+    'collapse': false,
+    'scrollbars': false,
     'trashcan': false,
     'comments': false,
     'disable': true,
     'media': './assets/',
-    'grid': {'spacing': '20', 'length': '5', 'snap': true, 'colour': '#ccc'},
-    'zoom': {'controls': true, 'wheel': true, 'scaleSpeed': 1.1, 'maxScale': 3, 'minScale': 0.1}
+    'zoom': {'controls': false, 'wheel': false, 'scaleSpeed': 1.1, 'maxScale': 3, 'minScale': 0.1}
   });
 
   var subContainer = goog.dom.createDom('div', 'injectionDiv');
