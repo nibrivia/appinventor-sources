@@ -8,11 +8,12 @@
     <include path="/fonts/*" expiration="365d">
       <http-header name="Content-Type" value="font/ttf" />
     </include>
+    <include path="/manifest.json" />
     <include path="/assets/*" />
     <include path="/companions/*" />
     <include path="/about/*" expiration="1d" />
     <include path="/static/**" expiration="1d" />
-    <include path="/images/*" expiration="365d" />
+    <include path="/images/*" expiration="1d" />
     <include path="/Ya_tos_form.html" expiration="1d" />
     <include path="/favicon.ico" expiration="365d" />
     <include path="/gwt.css" expiration="1d" />
@@ -26,6 +27,8 @@
     <include path="/leaflet/**" />
     <include path="/font-awesome/**" />
     <include path="/robots.txt" expiration="30d" />
+    <include path="/js/*" />
+    <include path="/sw.js" />
 
     <!-- These are not cached on purpose -->
     <include path="/ode/**.nocache.*" expiration="0s" />

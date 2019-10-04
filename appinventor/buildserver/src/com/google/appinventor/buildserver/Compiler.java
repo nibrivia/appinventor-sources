@@ -1223,6 +1223,7 @@ public final class Compiler {
         LOG.log(Level.SEVERE, "Kawa compile has failed.");
       }
       String kawaOutput = kawaOutputStream.toString();
+      LOG.log(Level.SEVERE, kawaOutput);
       out.print(kawaOutput);
       String kawaCompileTimeMessage = "Kawa compile time: " +
           ((System.currentTimeMillis() - start) / 1000.0) + " seconds";

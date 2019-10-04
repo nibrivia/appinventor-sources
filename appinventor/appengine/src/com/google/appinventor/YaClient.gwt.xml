@@ -134,5 +134,6 @@
 
   <set-property-fallback name="locale" value="en"/>
   <collapse-all-properties/>
+  <!--<add-linker name="sso" />-->
 
 </module>

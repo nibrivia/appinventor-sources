@@ -1,3 +1,5 @@
+package com.google.appinventor.components.runtime.errors;
+
 import com.google.appinventor.components.runtime.Form;
 
 import java.util.List;
@@ -14,4 +16,8 @@ public class WrappedException extends Exception {
     this.stackTrace = Form.getActiveForm().$getBlockStack();
   }
 
+  public WrappedException(Exception e) {
+    super(e);
+    this.stackTrace = Form.getActiveForm().$getBlockStack();
+  }
 }

@@ -18,6 +18,10 @@
 ;;; but the top-level forms are evaluated in that run() function.
 ;;;
 
+(import (rnrs hashtables))
+
+(define-alias StackFrame <com.google.appinventor.components.runtime.util.StackFrame>)
+
 ;;; also see *debug-form* below
 (define *debug* #f)
 
@@ -265,7 +269,10 @@
 (define-syntax set-lexical!
   (syntax-rules ()
     ((_ var value)
-      (set! var value))))
+      (begin
+        (set! var value)
+        (if *this-is-the-repl*
+          (hashtable-set! (car stackframes) 'var var))))))
 
 ;;; We can't use Kawa's and/or directly here, because we want to enforce that
 ;;; the argument types are booleans.  So we delay the arguments and check the types
@@ -2670,6 +2677,7 @@ list, use the make-yail-list constructor with no arguments.
 ;;;; Debug Macro
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 (define stacktrace :: gnu.lists.LList '())
+(define stackframes :: gnu.lists.LList '())
 
 ;; eventually would want to add more than just blockid
 (define (add-to-stacktrace blockid)
@@ -2686,6 +2694,25 @@ list, use the make-yail-list constructor with no arguments.
     '()
     (cons (car l) (list-copy (cdr l)))))
 
+(define-syntax debuglet
+  (syntax-rules ()
+    ((_ () c1 ...)
+      (let () c1 ...))
+    ((_ ((v1 b1) (v2 b2) ...) c1 c2 ...)
+      (if *this-is-the-repl*
+        (begin
+          (set! stackframes (cons (cons block-id (make-eq-hashtable)) stackframes))
+          (try-finally
+           (let ((v1 b1) (v2 b2) ...)
+             (begin
+               (hashtable-set! (car stackframes) 'v1 v1)
+               (hashtable-set! (car stackframes) 'v2 v2)
+               ...)
+             (android-log stackframes)
+             c1 c2 ...)
+           (set! stackframes (cdr stackframes))))
+        (let ((v1 b1) (v2 b2) ...) c1 c2 ...)))))
+
 (define-syntax debug
   (syntax-rules ()
     ((_ blockid code ...)
@@ -2696,13 +2723,10 @@ list, use the make-yail-list constructor with no arguments.
         (try-finally
          (try-catch
           (begin code ...)
-          (exception YailRuntimeError
-                     (android-log (exception:getMessage))
-                     (list "NOK"
-                           (exception:getMessage) (list-copy stacktrace)))
           (exception WrappedException
-                     (android-log (exception:getMessage))
-                     (list "NOK" (exception:getMessage) (list-copy stacktrace))))
+            (primitive-throw exception))
+          (exception Exception
+            (primitive-throw (make WrappedException exception))))
          (remove-from-stacktrace)))
       (begin code ...)))))
            ;; finally pop blockid (once block finishes executing, you want to remove blockid) - within the try-catch block
