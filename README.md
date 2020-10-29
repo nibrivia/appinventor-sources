@@ -25,7 +25,7 @@ Check out our open source [site](http://appinventor.mit.edu/appinventor-sources/
 
 ## Setup instructions (Vagrant)
 
-The easiest way to get a development environment up and running is to use the provided Vagrantfile. Install [Vagrant](https://vagrantup.com) and open a terminal in the root directory of this repository. Run the following commands
+The easiest way to get a development environment up and running is to use the provided Vagrantfile. Install [Vagrant](https://vagrantup.com) and open a terminal in the root directory of this repository. Run the following commands:
 
 ```bash
 vagrant plugin install vagrant-vbguest  # optionally for virtualbox users, and only once
@@ -41,6 +41,7 @@ vagrant ssh
 This should open up a terminal within the virtual machine in the directory `/vagrant/appinventor`. This directory is the same as the `appinventor` directory in this repository, shared between your host machine and the virtual machine. Any changes made on one side will be visible in the other. This allows you to edit files on your host machine with your preferred editor, while keeping the build environment relegated to the virtual machine. To build App Inventor, you may now run:
 
 ```bash
+git submodule update --init # Updates Blocky submodule
 ant
 ```
 
