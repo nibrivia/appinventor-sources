@@ -57,6 +57,8 @@ Note 1: For macOS users, if you are using VirtualBox and get any error while ini
 
 Note 2: If it seems like none of the dependencies are installed in the VM, run ```vagrant provision```.
 
+Note 3: If you want to allocate more than 1 CPU to the virtual machine, add `v.cpus = 2` (or however many you want) in `Vagrantfile`.
+
 For better performance, consider using the manual instructions.
 
 ## Setup instructions (manual)
