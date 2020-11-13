@@ -1,6 +1,6 @@
 // -*- mode: java; c-basic-offset: 2; -*-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2014 MIT, All rights reserved
+// Copyright 2011-2019 MIT, All rights reserved
 // Released under the MIT License https://raw.github.com/mit-cml/app-inventor/master/mitlicense.txt
 
 package com.google.appinventor.server;
@@ -65,7 +65,7 @@ import org.owasp.html.PolicyFactory;
 @SuppressWarnings("unchecked")
 public class LoginServlet extends HttpServlet {
 
-  private final StorageIo storageIo = StorageIoInstanceHolder.INSTANCE;
+  private final StorageIo storageIo = StorageIoInstanceHolder.getInstance();
   private static final Logger LOG = Logger.getLogger(LoginServlet.class.getName());
   private static final Flag<String> mailServer = Flag.createFlag("localauth.mailserver", "");
   private static final Flag<String> password = Flag.createFlag("localauth.mailserver.password", "");
@@ -96,17 +96,20 @@ public class LoginServlet extends HttpServlet {
     // These params are passed around so they can take effect even if we
     // were not logged in.
     String locale = params.get("locale");
-    if (locale == null) {
-      locale = "en";
-    }
     String repo = params.get("repo");
     String galleryId = params.get("galleryId");
     String redirect = params.get("redirect");
+    String autoload = params.get("autoload");
 
     if (DEBUG) {
       LOG.info("locale = " + locale + " bundle: " + new Locale(locale));
     }
-    ResourceBundle bundle = ResourceBundle.getBundle("com/google/appinventor/server/loginmessages", new Locale(locale));
+    ResourceBundle bundle;
+    if (locale == null) {
+      bundle = ResourceBundle.getBundle("com/google/appinventor/server/loginmessages", new Locale("en"));
+    } else {
+      bundle = ResourceBundle.getBundle("com/google/appinventor/server/loginmessages", new Locale(locale));
+    }
 
     if (page.equals("google")) {
       // We get here after we have gone through the Google Login page
@@ -149,6 +152,7 @@ public class LoginServlet extends HttpServlet {
       uri = new UriBuilder(uri)
         .add("locale", locale)
         .add("repo", repo)
+        .add("autoload", autoload)
         .add("galleryId", galleryId).build();
       resp.sendRedirect(uri);
       return;
@@ -164,7 +168,7 @@ public class LoginServlet extends HttpServlet {
           return;
         }
         String uri = new UriBuilder("/login/google")
-          .add("locale", locale)
+          .add("locale", "en".equals(locale) ? null : locale)
           .add("repo", repo)
           .add("galleryId", galleryId)
           .add("redirect", redirect).build();
@@ -243,6 +247,7 @@ public class LoginServlet extends HttpServlet {
     req.setAttribute("localeLabel", locale);
     req.setAttribute("pleaselogin", bundle.getString("pleaselogin"));
     req.setAttribute("login", bundle.getString("login"));
+    req.setAttribute("autoload", autoload);
     req.setAttribute("repo", repo);
     req.setAttribute("locale", locale);
     req.setAttribute("galleryId", galleryId);
@@ -277,6 +282,7 @@ public class LoginServlet extends HttpServlet {
     String repo = params.get("repo");
     String galleryId = params.get("galleryId");
     String redirect = params.get("redirect");
+    String autoload = params.get("autoload");
 
     if (locale == null) {
       locale = "en";
@@ -330,6 +336,7 @@ public class LoginServlet extends HttpServlet {
       String uri = new UriBuilder("/")
         .add("locale", locale)
         .add("repo", repo)
+        .add("autoload", autoload)
         .add("galleryId", galleryId).build();
       resp.sendRedirect(uri);   // Logged in, go to service
       return;
@@ -378,6 +385,7 @@ public class LoginServlet extends HttpServlet {
     }
     uri = new UriBuilder(uri)
       .add("locale", locale)
+      .add("autoload", autoload)
       .add("repo", repo)
       .add("galleryId", galleryId).build();
     resp.sendRedirect(uri);

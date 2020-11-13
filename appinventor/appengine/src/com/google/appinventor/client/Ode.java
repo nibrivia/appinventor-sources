@@ -1,6 +1,6 @@
 // -*- mode: java; c-basic-offset: 2; -*-
 // Copyright 2009-2011 Google, All Rights reserved
-// Copyright 2011-2012 MIT, All rights reserved
+// Copyright 2011-2019 MIT, All rights reserved
 // Released under the Apache License, Version 2.0
 // http://www.apache.org/licenses/LICENSE-2.0
 
@@ -35,6 +35,7 @@ import com.google.appinventor.client.editor.youngandroid.TutorialPanel;
 import com.google.appinventor.client.explorer.commands.ChainableCommand;
 import com.google.appinventor.client.explorer.commands.CommandRegistry;
 import com.google.appinventor.client.explorer.commands.SaveAllEditorsCommand;
+import com.google.appinventor.client.explorer.dialogs.NoProjectDialogBox;
 import com.google.appinventor.client.explorer.project.Project;
 import com.google.appinventor.client.explorer.project.ProjectChangeAdapter;
 import com.google.appinventor.client.explorer.project.ProjectManager;
@@ -48,6 +49,7 @@ import com.google.appinventor.client.output.OdeLog;
 import com.google.appinventor.client.settings.Settings;
 import com.google.appinventor.client.settings.user.UserSettings;
 import com.google.appinventor.client.tracking.Tracking;
+import com.google.appinventor.client.utils.HTML5DragDrop;
 import com.google.appinventor.client.utils.PZAwarePositionCallback;
 import com.google.appinventor.client.widgets.boxes.Box;
 import com.google.appinventor.client.widgets.boxes.ColumnLayout;
@@ -67,8 +69,6 @@ import com.google.appinventor.shared.rpc.RpcResult;
 import com.google.appinventor.shared.rpc.ServerLayout;
 import com.google.appinventor.shared.rpc.admin.AdminInfoService;
 import com.google.appinventor.shared.rpc.admin.AdminInfoServiceAsync;
-import com.google.appinventor.shared.rpc.help.HelpService;
-import com.google.appinventor.shared.rpc.help.HelpServiceAsync;
 import com.google.appinventor.shared.rpc.project.FileNode;
 import com.google.appinventor.shared.rpc.project.GalleryAppListResult;
 import com.google.appinventor.shared.rpc.project.GalleryComment;
@@ -86,6 +86,7 @@ import com.google.appinventor.shared.rpc.user.User;
 import com.google.appinventor.shared.rpc.user.UserInfoService;
 import com.google.appinventor.shared.rpc.user.UserInfoServiceAsync;
 import com.google.appinventor.shared.settings.SettingsConstants;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.gwt.core.client.Callback;
 import com.google.gwt.core.client.EntryPoint;
 import com.google.gwt.core.client.GWT;
@@ -196,15 +197,16 @@ public class Ode implements EntryPoint {
   private AssetManager assetManager;
 
   // Remembers the current View
-  static final int DESIGNER = 0;
-  static final int PROJECTS = 1;
-  private static final int GALLERY = 2;
-  private static final int GALLERYAPP = 3;
-  private static final int USERPROFILE = 4;
-  private static final int PRIVATEUSERPROFILE = 5;
-  private static final int MODERATIONPAGE = 6;
-  private static final int USERADMIN = 7;
-  private static int currentView = DESIGNER;
+  public static final int DESIGNER = 0;
+  public static final int PROJECTS = 1;
+  public static final int GALLERY = 2;
+  public static final int GALLERYAPP = 3;
+  public static final int USERPROFILE = 4;
+  public static final int PRIVATEUSERPROFILE = 5;
+  public static final int MODERATIONPAGE = 6;
+  public static final int USERADMIN = 7;
+  public static final int TRASHCAN = 8;
+  public static int currentView = DESIGNER;
 
   /*
    * The following fields define the general layout of the UI as seen in the following diagram:
@@ -243,6 +245,8 @@ public class Ode implements EntryPoint {
   private AdminUserListBox uaListBox;
   private DesignToolbar designToolbar;
   private TopToolbar topToolbar;
+  private VerticalPanel pVertPanel;
+  private HorizontalPanel projectListPanel = new HorizontalPanel();
 
   // Is the tutorial toolbar currently displayed?
   private boolean tutorialVisible = false;
@@ -250,9 +254,6 @@ public class Ode implements EntryPoint {
   // Popup that indicates that an asynchronous request is pending. It is visible
   // initially, and will be hidden automatically after the first RPC completes.
   private static RpcStatusPopup rpcStatusPopup;
-
-  // Web service for help information
-  private final HelpServiceAsync helpService = GWT.create(HelpService.class);
 
   // Web service for project related information
   private final ProjectServiceAsync projectService = GWT.create(ProjectService.class);
@@ -431,20 +432,26 @@ public class Ode implements EntryPoint {
     return currentView;
   }
 
+  public DeckPanel getDeckPanel() {
+    return deckPanel;
+  }
+
+  public HorizontalPanel getOverDeckPanel() {
+    return overDeckPanel;
+  }
+
   /**
    * Switch to the Projects tab
    */
   public void switchToProjectsView() {
     // We may need to pass the code below as a runnable to
     // screenShotMaybe() so build the runnable now
+    hideChaff();
     hideTutorials();
     Runnable next = new Runnable() {
         @Override
         public void run() {
-          if(currentView != PROJECTS) { //If we are switching to projects view from somewhere else, clear all of the previously selected projects.
-            ProjectListBox.getProjectListBox().getProjectList().getSelectedProjects().clear();
-            ProjectListBox.getProjectListBox().getProjectList().refreshTable(false);
-          }
+          ProjectListBox.getProjectListBox().loadProjectList();
           currentView = PROJECTS;
           getTopToolbar().updateFileMenuButtons(currentView);
           deckPanel.showWidget(projectsTabIndex);
@@ -453,6 +460,9 @@ public class Ode implements EntryPoint {
           // the button). When the person switches to the projects list view again (here)
           // we re-enable it.
           projectToolbar.enableStartButton();
+          projectToolbar.setProjectTabButtonsVisible(true);
+          projectToolbar.setPublishOrUpdateButtonVisible(true);
+          projectToolbar.setTrashTabButtonsVisible(false);
         }
       };
     if (designToolbar.getCurrentView() != DesignToolbar.View.BLOCKS) {
@@ -464,10 +474,26 @@ public class Ode implements EntryPoint {
   }
 
   /**
+   * Switch to the Trash tab
+   */
+
+  public void switchToTrash() {
+    hideChaff();
+    hideTutorials();
+    ProjectListBox.getProjectListBox().loadTrashList();
+    currentView = TRASHCAN;
+    projectToolbar.enableStartButton();
+    projectToolbar.setProjectTabButtonsVisible(false);
+    projectToolbar.setPublishOrUpdateButtonVisible(false);
+    projectToolbar.setTrashTabButtonsVisible(true);
+  }
+
+  /**
    * Switch to the User Admin Panel
    */
 
   public void switchToUserAdminPanel() {
+    hideChaff();
     hideTutorials();
     currentView = USERADMIN;
     deckPanel.showWidget(userAdminTabIndex);
@@ -477,6 +503,7 @@ public class Ode implements EntryPoint {
    * Switch to the Gallery tab
    */
   public void switchToGalleryView() {
+    hideChaff();
     hideTutorials();
     if (!galleryInitialized) {
       // Gallery initialization is deferred until now.
@@ -490,6 +517,7 @@ public class Ode implements EntryPoint {
    * Switch to the Gallery App
    */
   public void switchToGalleryAppView(GalleryApp app, int editStatus) {
+    hideChaff();
     hideTutorials();
     if (!galleryInitialized) {
       // Gallery initialization is deferred until now.
@@ -505,6 +533,7 @@ public class Ode implements EntryPoint {
    * TODO: change string parameter
    */
   public void switchToUserProfileView(String userId, int editStatus) {
+    hideChaff();
     hideTutorials();
     currentView = USERPROFILE;
     OdeLog.log("###########" + userId + "||||||" + editStatus);
@@ -516,6 +545,7 @@ public class Ode implements EntryPoint {
    * Switch to the Designer tab. Shows an error message if there is no currentFileEditor.
    */
   public void switchToDesignView() {
+    hideChaff();
     // Only show designer if there is a current editor.
     // ***** THE DESIGNER TAB DOES NOT DISPLAY CORRECTLY IF THERE IS NO CURRENT EDITOR. *****
     showTutorials();
@@ -533,6 +563,7 @@ public class Ode implements EntryPoint {
    * Switch to Gallery TabPanel
    */
   public void switchToPrivateUserProfileView() {
+    hideChaff();
     currentView = privateUserProfileIndex;
     deckPanel.showWidget(privateUserProfileIndex);
   }
@@ -541,6 +572,7 @@ public class Ode implements EntryPoint {
    * Switch to the Moderation Page tab
    */
   public void switchToModerationPageView() {
+    hideChaff();
     hideTutorials();
     if (!galleryInitialized) {
       initializeGallery();
@@ -552,6 +584,7 @@ public class Ode implements EntryPoint {
    * Switch to the Debugging tab
    */
   public void switchToDebuggingView() {
+    hideChaff();
     hideTutorials();
     deckPanel.showWidget(debuggingTabIndex);
 
@@ -560,64 +593,78 @@ public class Ode implements EntryPoint {
     resizeWorkArea((WorkAreaPanel) deckPanel.getWidget(debuggingTabIndex));
   }
 
-  public void openPreviousProject() {
+  /**
+   * Processes the template and galleryId flags.
+   *
+   * @return true if a template or gallery id is present and being handled, otherwise false.
+   */
+  private boolean handleQueryString() {
     if (userSettings == null) {
-      OdeLog.wlog("Ignoring openPreviousProject() since userSettings is null");
-      return;
+      return false;
     }
-    OdeLog.log("Ode.openPreviousProject called");
-    final String value = userSettings.getSettings(SettingsConstants.USER_GENERAL_SETTINGS).
-      getPropertyValue(SettingsConstants.GENERAL_SETTINGS_CURRENT_PROJECT_ID);
-
     // Retrieve the userTemplates
-    String userTemplates = userSettings.getSettings(SettingsConstants.USER_GENERAL_SETTINGS).
-      getPropertyValue(SettingsConstants.USER_TEMPLATE_URLS);
+    String userTemplates = userSettings.getSettings(SettingsConstants.USER_GENERAL_SETTINGS)
+        .getPropertyValue(SettingsConstants.USER_TEMPLATE_URLS);
     TemplateUploadWizard.setStoredTemplateUrls(userTemplates);
 
     if (templateLoadingFlag) {  // We are loading a template, open it instead
                                 // of the last project
       NewProjectCommand callbackCommand = new NewProjectCommand() {
-          @Override
-          public void execute(Project project) {
-            templateLoadingFlag = false;
-            Ode.getInstance().openYoungAndroidProjectInDesigner(project);
-          }
-        };
+        @Override
+        public void execute(Project project) {
+          templateLoadingFlag = false;
+          Ode.getInstance().openYoungAndroidProjectInDesigner(project);
+        }
+      };
       TemplateUploadWizard.openProjectFromTemplate(templatePath, callbackCommand);
-    } else if(galleryIdLoadingFlag){
+      return true;
+    } else if (galleryIdLoadingFlag) {
       try {
-        long galleryId_Long = Long.valueOf(galleryId);
+        long galleryId = Long.parseLong(this.galleryId);
         final OdeAsyncCallback<GalleryApp> callback = new OdeAsyncCallback<GalleryApp>(
             // failure message
             MESSAGES.galleryError()) {
-              @Override
-              public void onSuccess(GalleryApp app) {
-                if(app == null){
-                  openProject(value);
-                  Window.alert(MESSAGES.galleryIdNotExist());
-                }else{
-                  Ode.getInstance().switchToGalleryAppView(app, GalleryPage.VIEWAPP);
-                }
-              }
-            };
-        Ode.getInstance().getGalleryService().getApp(galleryId_Long, callback);
+          @Override
+          public void onSuccess(GalleryApp app) {
+            if (app == null || !app.getActive()) {
+              Window.alert(MESSAGES.galleryIdNotExist());
+              // Reset the galleryId flag and then load the previous project
+              galleryIdLoadingFlag = false;
+              openPreviousProject();
+            } else {
+              Ode.getInstance().switchToGalleryAppView(app, GalleryPage.VIEWAPP);
+            }
+          }
+        };
+        Ode.getInstance().getGalleryService().getApp(galleryId, callback);
+        return true;
       } catch (NumberFormatException e) {
-        openProject(value);
         Window.alert(MESSAGES.galleryIdNotExist());
       }
-    } else {
-      openProject(value);
     }
+    return false;
+  }
+
+  /**
+   * Opens the user's last project, if the information is known.
+   */
+  private void openPreviousProject() {
+    if (userSettings == null) {
+      OdeLog.wlog("Ignoring openPreviousProject() since userSettings is null");
+      return;
+    }
+    final String value = userSettings.getSettings(SettingsConstants.USER_GENERAL_SETTINGS)
+        .getPropertyValue(SettingsConstants.GENERAL_SETTINGS_CURRENT_PROJECT_ID);
+    openProject(value);
   }
 
   private void openProject(String projectIdString) {
-    OdeLog.log("Ode.openProject called for " + projectIdString);
     if (projectIdString.equals("")) {
       openPreviousProject();
     } else if (!projectIdString.equals("0")) {
       final long projectId = Long.parseLong(projectIdString);
       Project project = projectManager.getProject(projectId);
-      if (project != null) {
+      if (project != null && !project.isInTrash()) {   // If last opened project is now in the trash, don't open it.
         openYoungAndroidProjectInDesigner(project);
       } else {
         // The project hasn't been added to the ProjectManager yet.
@@ -653,7 +700,7 @@ public class Ode implements EntryPoint {
       // Add a ProjectChangeListener so we'll be notified when they have been loaded.
       project.addProjectChangeListener(new ProjectChangeAdapter() {
         @Override
-        public void onProjectLoaded(Project projectLoaded) {
+        public void onProjectLoaded(Project glass) {
           project.removeProjectChangeListener(this);
           openYoungAndroidProjectInDesigner(project);
         }
@@ -741,6 +788,9 @@ public class Ode implements EntryPoint {
       galleryIdLoadingFlag = true;
     }
 
+    // We call this below to initialize the ConnectProgressBar
+    ConnectProgressBar.getInstance();
+
     // Get user information.
     OdeAsyncCallback<Config> callback = new OdeAsyncCallback<Config>(
         // failure message
@@ -805,54 +855,77 @@ public class Ode implements EntryPoint {
         }
 
         if (result.getRendezvousServer() != null) {
-          setRendezvousServer(result.getRendezvousServer());
+          setRendezvousServer(result.getRendezvousServer(), true);
         } else {
-          setRendezvousServer(YaVersion.RENDEZVOUS_SERVER);
+          setRendezvousServer(YaVersion.RENDEZVOUS_SERVER, false);
         }
 
         userSettings = new UserSettings(user);
-
-        // Gallery settings
-        gallerySettings = new GallerySettings();
-        //gallerySettings.loadGallerySettings();
-        loadGallerySettings();
-
-        // Initialize project and editor managers
-        // The project manager loads the user's projects asynchronously
-        projectManager = new ProjectManager();
-        projectManager.addProjectManagerEventListener(new ProjectManagerEventAdapter() {
+        userSettings.loadSettings(new Command() {
           @Override
-          public void onProjectsLoaded() {
-            projectManager.removeProjectManagerEventListener(this);
+          public void execute() {
 
-            // This handles any built-in templates stored in /war
-            // Retrieve template data stored in war/templates folder and
-            // and save it for later use in TemplateUploadWizard
-            OdeAsyncCallback<String> templateCallback =
-                new OdeAsyncCallback<String>(
-                  // failure message
-                  MESSAGES.createProjectError()) {
-                  @Override
-                  public void onSuccess(String json) {
-                    // Save the templateData
-                    TemplateUploadWizard.initializeBuiltInTemplates(json);
-                    // Here we call userSettings.loadSettings, but the settings are actually loaded
-                    // asynchronously, so this loadSettings call will return before they are loaded.
-                    // After the user settings have been loaded, openPreviousProject will be called.
-                    // We have to call this after the builtin templates have been loaded otherwise
-                    // we will get a NPF.
-                    userSettings.loadSettings();
-                  }
-                };
-            Ode.getInstance().getProjectService().retrieveTemplateData(TemplateUploadWizard.TEMPLATES_ROOT_DIRECTORY, templateCallback);
+            // Gallery settings
+            gallerySettings = new GallerySettings();
+            //gallerySettings.loadGallerySettings();
+            loadGallerySettings();
+
+            // Initialize project and editor managers
+            // The project manager loads the user's projects asynchronously
+            projectManager = new ProjectManager();
+            projectManager.addProjectManagerEventListener(new ProjectManagerEventAdapter() {
+              @Override
+              public void onProjectsLoaded() {
+                projectManager.removeProjectManagerEventListener(this);
+                if (!handleQueryString() && shouldAutoloadLastProject()) {
+                  openPreviousProject();
+                }
+
+                // This handles any built-in templates stored in /war
+                // Retrieve template data stored in war/templates folder and
+                // and save it for later use in TemplateUploadWizard
+                OdeAsyncCallback<String> templateCallback =
+                    new OdeAsyncCallback<String>(
+                        // failure message
+                        MESSAGES.createProjectError()) {
+                      @Override
+                      public void onSuccess(String json) {
+                        // Save the templateData
+                        TemplateUploadWizard.initializeBuiltInTemplates(json);
+                      }
+                    };
+                Ode.getInstance().getProjectService().retrieveTemplateData(TemplateUploadWizard.TEMPLATES_ROOT_DIRECTORY, templateCallback);
+              }
+            });
+            editorManager = new EditorManager();
+
+            // Initialize UI
+            initializeUi();
+
+            topPanel.showUserEmail(user.getUserEmail());
           }
         });
-        editorManager = new EditorManager();
+      }
 
-        // Initialize UI
-        initializeUi();
+      private boolean isSet(String str) {
+        return str != null && !str.equals("");
+      }
 
-        topPanel.showUserEmail(user.getUserEmail());
+      private String makeUri(String base) {
+        String[] params = new String[] { "locale", "repo", "galleryId", "autoload" };
+        String separator = "?";
+        StringBuilder sb = new StringBuilder(base);
+        for (String param : params) {
+          String value = Window.Location.getParameter(param);
+          if (isSet(value)) {
+            sb.append(separator);
+            sb.append(param);
+            sb.append("=");
+            sb.append(value);
+            separator = "&";
+          }
+        }
+        return sb.toString();
       }
 
       @Override
@@ -869,26 +942,10 @@ public class Ode implements EntryPoint {
               return;
             case Response.SC_FORBIDDEN:
               // forbidden => need tos accept
-              Window.open("/" + ServerLayout.YA_TOS_FORM, "_self", null);
+              Window.open(makeUri("/" + ServerLayout.YA_TOS_FORM), "_self", null);
               return;
             case Response.SC_PRECONDITION_FAILED:
-              String locale = Window.Location.getParameter("locale");
-              String repo = Window.Location.getParameter("repo");
-              galleryId = Window.Location.getParameter("galleryId");
-              String separator = "?";
-              String uri = "/login/";
-              if (locale != null && !locale.equals("")) {
-                uri += separator + "locale=" + locale;
-                separator = "&";
-              }
-              if (repo != null && !repo.equals("")) {
-                uri += separator + "repo=" + repo;
-                separator = "&";
-              }
-              if (galleryId != null && !galleryId.equals("")) {
-                uri += separator + "galleryId=" + galleryId;
-              }
-              Window.Location.replace(uri);
+              Window.Location.replace(makeUri("/login/"));
               return;           // likely not reached
           }
         }
@@ -936,7 +993,6 @@ public class Ode implements EntryPoint {
     rpcStatusPopup = new RpcStatusPopup();
 
     // Register services with RPC status popup
-    rpcStatusPopup.register((ExtendedServiceProxy<?>) helpService);
     rpcStatusPopup.register((ExtendedServiceProxy<?>) projectService);
     rpcStatusPopup.register((ExtendedServiceProxy<?>) galleryService);
     rpcStatusPopup.register((ExtendedServiceProxy<?>) userInfoService);
@@ -976,7 +1032,7 @@ public class Ode implements EntryPoint {
     deckPanel.setStyleName("ode-DeckPanel");
 
     // Projects tab
-    VerticalPanel pVertPanel = new VerticalPanel() {
+    pVertPanel = new VerticalPanel() {
         /**
          * Flag to indicate the project list has been rendered at least once.
          */
@@ -999,7 +1055,6 @@ public class Ode implements EntryPoint {
       };
     pVertPanel.setWidth("100%");
     pVertPanel.setSpacing(0);
-    HorizontalPanel projectListPanel = new HorizontalPanel();
     projectListPanel.setWidth("100%");
     projectToolbar = new ProjectToolbar();
     projectListPanel.add(ProjectListBox.getProjectListBox());
@@ -1215,6 +1270,10 @@ public class Ode implements EntryPoint {
       }
     }, MouseWheelEvent.getType());
 
+    if (getUserDyslexicFont()) {
+      RootPanel.get().addStyleName("dyslexic");
+    }
+
     // There is no sure-fire way of preventing people from accidentally navigating away from ODE
     // (e.g. by hitting the Backspace key). What we do need though is to make sure that people will
     // not lose any work because of this. We hook into the window closing  event to detect the
@@ -1227,6 +1286,7 @@ public class Ode implements EntryPoint {
     });
 
     setupMotd();
+    HTML5DragDrop.init();
   }
 
   private void setupMotd() {
@@ -1371,15 +1431,6 @@ public class Ode implements EntryPoint {
   }
 
   /**
-   * Get an instance of the help web service.
-   *
-   * @return help service instance
-   */
-  public HelpServiceAsync getHelpService() {
-    return helpService;
-  }
-
-  /**
    * Get an instance of the component web service.
    *
    * @return component web service instance
@@ -1487,6 +1538,87 @@ public class Ode implements EntryPoint {
   }
 
   /**
+   * Checks whether autoloading of the user's previous project should be
+   * performed.
+   *
+   * @return true if autoloading should be performed, otherwise false.
+   */
+  public boolean shouldAutoloadLastProject() {
+    String autoloadParam = Window.Location.getParameter("autoload");
+    if ("false".equalsIgnoreCase(autoloadParam)) {
+      return false;
+    } else if ("true".equalsIgnoreCase(autoloadParam)) {
+      return true;
+    }
+    return getUserAutoloadProject();
+  }
+
+  /**
+   * HideChaff when switching view from block to others
+   */
+  private void hideChaff() {
+    if (designToolbar.getCurrentView() == DesignToolbar.View.BLOCKS
+        // currentFileEditor may be null when switching projects
+        && currentFileEditor != null) {
+      currentFileEditor.hideChaff();
+    }
+  }
+  /**
+   * Returns user dyslexic font setting.
+   *
+   * @return user default font
+   */
+  public static boolean getUserDyslexicFont() {
+    String value = userSettings.getSettings(SettingsConstants.USER_GENERAL_SETTINGS).
+            getPropertyValue(SettingsConstants.USER_DYSLEXIC_FONT);
+    return Boolean.parseBoolean(value);
+  }
+
+  /**
+   * Set user dyslexic font setting.
+   *
+   * @param isTrue new value for the user default font
+   */
+  public static void setUserDyslexicFont(boolean dyslexicFont) {
+    userSettings.getSettings(SettingsConstants.USER_GENERAL_SETTINGS).
+            changePropertyValue(SettingsConstants.USER_DYSLEXIC_FONT,
+                    "" + dyslexicFont);
+    userSettings.saveSettings(new Command() {
+        @Override
+        public void execute() {
+          // Reload for the new font to take effect. We
+          // do this here because we need to make sure that
+          // the user settings were saved before we terminate
+          // this browsing session. This is particularly important
+          // for Firefox
+          Window.Location.reload();
+        }
+      });
+  }
+
+  /**
+   * Checks whether the user has autoloading enabled in their settings.
+   *
+   * @return true if autoloading is enabled, otherwise false.
+   */
+  public static boolean getUserAutoloadProject() {
+    String value = userSettings.getSettings(SettingsConstants.USER_GENERAL_SETTINGS)
+        .getPropertyValue(SettingsConstants.USER_AUTOLOAD_PROJECT);
+    return Boolean.parseBoolean(value);
+  }
+
+  /**
+   * Sets whether to use autoloading for the current user.
+   *
+   * @param enable true if autoloading should be enabled or false if it should be disabled.
+   */
+  public static void setUserAutoloadProject(boolean enable) {
+    userSettings.getSettings(SettingsConstants.USER_GENERAL_SETTINGS)
+        .changePropertyValue(SettingsConstants.USER_AUTOLOAD_PROJECT, Boolean.toString(enable));
+    userSettings.saveSettings(null);
+  }
+
+  /**
    * Helper method to create push buttons.
    *
    * @param img  image to shown on face of push button
@@ -1499,6 +1631,49 @@ public class Ode implements EntryPoint {
     pb.addClickHandler(handler);
     pb.setTitle(tip);
     return pb;
+  }
+
+  /**
+   * Compares two locales and determines if they are equal. We consider oldLocale value
+   * of null to be equal to the empty string to handle default values.
+   * @param oldLocale one locale
+   * @param newLocale another locale
+   * @param defaultValue the default locale
+   * @return  true if the locale ISO strings are equal modulo case or if both
+   *          are empty, otherwise false
+   */
+  @VisibleForTesting
+  static boolean compareLocales(String oldLocale, String newLocale, String defaultValue) {
+    if ((oldLocale == null || oldLocale.isEmpty()) && (newLocale == null || newLocale.isEmpty())) {
+      return true;
+    } else if (oldLocale == null || oldLocale.isEmpty()) {
+      return defaultValue.equalsIgnoreCase(newLocale);
+    } else {
+      return oldLocale.equalsIgnoreCase(newLocale);
+    }
+  }
+
+  /**
+   * Check the user's locale against the currently requested locale. No locale
+   * is specified in the query string, then we redirect to the user's previous
+   * locale. English, the default locale, won't redirect in this scenario to
+   * prevent double requests for most of our users. If locale parameter is
+   * specified and the locales don't match, then we set the user's last locale
+   * to the current locale.
+   */
+  public static boolean handleUserLocale() {
+    String locale = Window.Location.getParameter("locale");
+    String lastUserLocale = userSettings.getSettings(SettingsConstants.USER_GENERAL_SETTINGS).getPropertyValue(SettingsConstants.USER_LAST_LOCALE);
+    if (!compareLocales(locale, lastUserLocale, "en")) {
+      if (locale == null) {
+        Window.Location.assign(Window.Location.createUrlBuilder().setParameter("locale", lastUserLocale).buildString());
+        return false;
+      } else {
+        userSettings.getSettings(SettingsConstants.USER_GENERAL_SETTINGS).changePropertyValue(SettingsConstants.USER_LAST_LOCALE, locale);
+        userSettings.saveSettings(null);
+      }
+    }
+    return true;
   }
 
   private void resizeWorkArea(WorkAreaPanel workArea) {
@@ -1516,7 +1691,6 @@ public class Ode implements EntryPoint {
     }
 
     // Unregister services with RPC status popup.
-    rpcStatusPopup.unregister((ExtendedServiceProxy<?>) helpService);
     rpcStatusPopup.unregister((ExtendedServiceProxy<?>) projectService);
     rpcStatusPopup.unregister((ExtendedServiceProxy<?>) userInfoService);
 
@@ -1545,6 +1719,22 @@ public class Ode implements EntryPoint {
    * @return The created and optionally displayed Dialog box.
    */
   public DialogBox createNoProjectsDialog(boolean showDialog) {
+    final NoProjectDialogBox dialogBox = new NoProjectDialogBox();
+    
+    if (showDialog) {
+      dialogBox.show();
+    }
+  
+    return dialogBox;
+  }
+
+  /**
+   * Creates a dialog box to show empty trash list message.
+   * @param showDialog Convenience variable to show the created DialogBox.
+   * @return The created and optionally displayed Dialog box.
+   */
+
+  public DialogBox createEmptyTrashDialog(boolean showDialog) {
     // Create the UI elements of the DialogBox
     final DialogBox dialogBox = new DialogBox(true, false); //DialogBox(autohide, modal)
     dialogBox.setStylePrimaryName("ode-DialogBox");
@@ -1552,37 +1742,32 @@ public class Ode implements EntryPoint {
 
     Grid mainGrid = new Grid(2, 2);
     mainGrid.getCellFormatter().setAlignment(0,
-        0,
-        HasHorizontalAlignment.ALIGN_CENTER,
-        HasVerticalAlignment.ALIGN_MIDDLE);
+            0,
+            HasHorizontalAlignment.ALIGN_CENTER,
+            HasVerticalAlignment.ALIGN_MIDDLE);
     mainGrid.getCellFormatter().setAlignment(0,
-        1,
-        HasHorizontalAlignment.ALIGN_CENTER,
-        HasVerticalAlignment.ALIGN_MIDDLE);
+            1,
+            HasHorizontalAlignment.ALIGN_CENTER,
+            HasVerticalAlignment.ALIGN_MIDDLE);
     mainGrid.getCellFormatter().setAlignment(1,
-        1,
-        HasHorizontalAlignment.ALIGN_RIGHT,
-        HasVerticalAlignment.ALIGN_MIDDLE);
+            1,
+            HasHorizontalAlignment.ALIGN_RIGHT,
+            HasVerticalAlignment.ALIGN_MIDDLE);
 
     Image dialogImage = new Image(Ode.getImageBundle().codiVert());
 
     Grid messageGrid = new Grid(2, 1);
     messageGrid.getCellFormatter().setAlignment(0,
-        0,
-        HasHorizontalAlignment.ALIGN_JUSTIFY,
-        HasVerticalAlignment.ALIGN_MIDDLE);
+            0,
+            HasHorizontalAlignment.ALIGN_JUSTIFY,
+            HasVerticalAlignment.ALIGN_MIDDLE);
     messageGrid.getCellFormatter().setAlignment(1,
-        0,
-        HasHorizontalAlignment.ALIGN_LEFT,
-        HasVerticalAlignment.ALIGN_MIDDLE);
+            0,
+            HasHorizontalAlignment.ALIGN_LEFT,
+            HasVerticalAlignment.ALIGN_MIDDLE);
 
-    Label messageChunk1 = new HTML(MESSAGES.createNoProjectsDialogMessage1());
 
-    messageChunk1.setWidth("23em");
-    Label messageChunk2 = new Label(MESSAGES.createNoprojectsDialogMessage2());
-
-    // Add the elements to the grids and DialogBox.
-    messageGrid.setWidget(0, 0, messageChunk1);
+    Label messageChunk2 = new Label(MESSAGES.showEmptyTrashMessage());
     messageGrid.setWidget(1, 0, messageChunk2);
     mainGrid.setWidget(0, 0, dialogImage);
     mainGrid.setWidget(0, 1, messageGrid);
@@ -1662,7 +1847,7 @@ public class Ode implements EntryPoint {
     projectManager.addProjectManagerEventListener(new ProjectManagerEventAdapter() {
       @Override
       public void onProjectsLoaded() {
-        if (projectManager.projectCount() == 0 && !templateLoadingFlag) {
+        if (ProjectListBox.getProjectListBox().getProjectList().getMyProjectsCount() == 0 && !templateLoadingFlag && !galleryIdLoadingFlag) {
           ErrorReporter.hide();  // hide the "Please choose a project" message
           createNoProjectsDialog(true);
         }
@@ -1775,7 +1960,7 @@ public class Ode implements EntryPoint {
     projectManager.addProjectManagerEventListener(new ProjectManagerEventAdapter() {
       @Override
       public void onProjectsLoaded() {
-        if (projectManager.projectCount() == 0 && !templateLoadingFlag) {
+        if (ProjectListBox.getProjectListBox().getProjectList().getMyProjectsCount() == 0 && !templateLoadingFlag) {
           ErrorReporter.hide();  // hide the "Please choose a project" message
           showSplashScreens();
         }
@@ -2078,6 +2263,39 @@ public class Ode implements EntryPoint {
         }
       });
     holder.add(cancelSession);
+    DialogBoxContents.add(message);
+    DialogBoxContents.add(holder);
+    dialogBox.setWidget(DialogBoxContents);
+    dialogBox.show();
+  }
+
+  /**
+   * Display a dialog box with a provided warning message.
+   *
+   * @param message The message to display
+   */
+
+  public void genericWarning(String inputMessage) {
+    // Create the UI elements of the DialogBox
+    final DialogBox dialogBox = new DialogBox(false, true); // DialogBox(autohide, modal)
+    dialogBox.setStylePrimaryName("ode-DialogBox");
+    dialogBox.setText(MESSAGES.warningDialogTitle());
+    dialogBox.setHeight("100px");
+    dialogBox.setWidth("400px");
+    dialogBox.setGlassEnabled(true);
+    dialogBox.setAnimationEnabled(true);
+    dialogBox.center();
+    VerticalPanel DialogBoxContents = new VerticalPanel();
+    HTML message = new HTML("<p>" + inputMessage + "</p>");
+    message.setStyleName("DialogBox-message");
+    FlowPanel holder = new FlowPanel();
+    Button okButton = new Button("OK");
+    okButton.addClickListener(new ClickListener() {
+        public void onClick(Widget sender) {
+          dialogBox.hide();
+        }
+      });
+    holder.add(okButton);
     DialogBoxContents.add(message);
     DialogBoxContents.add(holder);
     dialogBox.setWidget(DialogBoxContents);
@@ -2409,6 +2627,7 @@ public class Ode implements EntryPoint {
   private void showTutorials() {
     if (tutorialVisible) {
       tutorialPanel.setVisible(true);
+      overDeckPanel.setCellWidth(tutorialPanel, "300");
     }
   }
 
@@ -2417,6 +2636,7 @@ public class Ode implements EntryPoint {
     if (visible) {
       tutorialPanel.setVisible(true);
       tutorialPanel.setWidth("300px");
+      overDeckPanel.setCellWidth(tutorialPanel, "300");
     } else {
       tutorialPanel.setVisible(false);
       overDeckPanel.setCellWidth(tutorialPanel, "0%");
@@ -2443,6 +2663,10 @@ public class Ode implements EntryPoint {
       designToolbar.setTutorialToggleVisible(false);
       setTutorialVisible(false);
     } else {
+      String locale = Window.Location.getParameter("locale");
+      if (locale != null) {
+        newURL += (newURL.contains("?") ? "&" : "?") + "locale=" + locale;
+      }
       tutorialPanel.setUrl(newURL);
       designToolbar.setTutorialToggleVisible(true);
       setTutorialVisible(true);
@@ -2480,10 +2704,28 @@ public class Ode implements EntryPoint {
     }
   }
 
-  // Native code to set the top level rendezvousServer variable
-  // where blockly code can easily find it.
-  private native void setRendezvousServer(String server) /*-{
+  /**
+   * setRendezvousServer
+   *
+   * Setup the Rendezvous server location.
+   *
+   * There are two places where the rendezvous servers is setup. The
+   * "compiled in" version is in YaVersion.RENDEZVOUS_SERVER.  The
+   * runtime version is in appengine-web.xml. If they differ, we set
+   * "top.includeQRcode" to true so that when we display the
+   * QRCode, we include the name of the Rendezvous server. Note: What
+   * is important here is what version of the rendezvous server is
+   * compiled into the Companion itself. The Companion does *not* get
+   * the default version from YaVersion, but from the blocks that are
+   * used to build the Companion.
+   *
+   * @param server the domain name of the Rendezvous servers
+   * @param inclQRcode true to indicate that the rendezvous server domain name should be included in the QR Code
+   *
+   */
+  private native void setRendezvousServer(String server, boolean inclQRcode) /*-{
     top.rendezvousServer = server;
+    top.includeQRcode = inclQRcode;
   }-*/;
 
   // Native code to open a new window (or tab) to display the

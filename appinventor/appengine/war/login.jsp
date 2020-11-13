@@ -1,14 +1,16 @@
 <%@page import="javax.servlet.http.HttpServletRequest"%>
 <%@page import="com.google.appinventor.server.util.UriBuilder"%>
+<%@page import="org.apache.commons.lang3.StringEscapeUtils"%>
 <%@page contentType="text/html" pageEncoding="UTF-8"%>
 <!doctype html>
 <%
-   String error = request.getParameter("error");
+   String error = StringEscapeUtils.escapeHtml4(request.getParameter("error"));
    String useGoogleLabel = (String) request.getAttribute("useGoogleLabel");
-   String locale = request.getParameter("locale");
-   String redirect = request.getParameter("redirect");
-   String repo = (String) request.getAttribute("repo");
-   String galleryId = (String) request.getAttribute("galleryId");
+   String locale = StringEscapeUtils.escapeHtml4(request.getParameter("locale"));
+   String redirect = StringEscapeUtils.escapeHtml4(request.getParameter("redirect"));
+   String repo = StringEscapeUtils.escapeHtml4((String) request.getAttribute("repo"));
+   String autoload = StringEscapeUtils.escapeHtml4((String) request.getAttribute("autoload"));
+   String galleryId = StringEscapeUtils.escapeHtml4((String) request.getAttribute("galleryId"));
    if (locale == null) {
        locale = "en";
    }
@@ -24,7 +26,7 @@
   </head>
 <body>
   <center>
-    <h1>${pleaselogin}</h1></center>
+    <h1>${pleaselogin}</h1>
   </center>
 <% if (error != null) {
 out.println("<center><font color=red><b>" + error + "</b></font></center><br/>");
@@ -43,6 +45,10 @@ out.println("<center><font color=red><b>" + error + "</b></font></center><br/>")
    %>
 <input type=hidden name=repo value="<%= repo %>">
 <% }
+   if (autoload != null && !autoload.equals("")) {
+   %>
+<input type=hidden name=autoload value="<%= autoload %>">
+<% }
    if (galleryId != null && !galleryId.equals("")) {
    %>
 <input type=hidden name=galleryId value="<%= galleryId %>">
@@ -59,6 +65,7 @@ out.println("<center><font color=red><b>" + error + "</b></font></center><br/>")
 <%    if (useGoogleLabel != null && useGoogleLabel.equals("true")) { %>
 <center><p><a href="<%= new UriBuilder("/login/google")
                               .add("locale", locale)
+                              .add("autoload", autoload)
                               .add("repo", repo)
                               .add("galleryId", galleryId)
                               .add("redirect", redirect).build() %>" style="text-decoration:none;">Click Here to use your Google Account to login</a></p></center>
@@ -67,30 +74,33 @@ out.println("<center><font color=red><b>" + error + "</b></font></center><br/>")
 <center><a href="<%= new UriBuilder("/login")
                            .add("locale", "zh_CN")
                            .add("repo", repo)
+                           .add("autoload", autoload)
                            .add("galleryId", galleryId)
                            .add("redirect", redirect).build() %>"  style="text-decoration:none;" >中文</a>&nbsp;
 <a href="<%= new UriBuilder("/login")
                            .add("locale", "pt")
                            .add("repo", repo)
+                           .add("autoload", autoload)
                            .add("galleryId", galleryId)
                            .add("redirect", redirect).build() %>"  style="text-decoration:none;" >Português</a>&nbsp;
 <a href="<%= new UriBuilder("/login")
                    .add("locale", "en")
                    .add("repo", repo)
+                   .add("autoload", autoload)
                    .add("galleryId", galleryId)
                    .add("redirect", redirect).build() %>"  style="text-decoration:none;" >English</a></center>
 <p></p>
 <center>
 <%    if (locale != null && locale.equals("zh_CN")) { %>
 <a href="http://www.weibo.com/mitappinventor" target="_blank"><img class="img-scale"
-                  src="/images/mzl.png" width="30" height="30" title="Sina WeiBo"></a>&nbsp;
+                  src="/static/images/mzl.png" width="30" height="30" title="Sina WeiBo"></a>&nbsp;
 <%    } %>
 <a href="http://www.appinventor.mit.edu" target="_blank"><img class="img-scale"
-                src="/images/login-app-inventor.jpg" width="50" height="30" title="MIT App Inventor"></a></center>
+                src="/static/images/login-app-inventor.jpg" width="50" height="30" title="MIT App Inventor"></a></center>
 <p></p>
 
 <p style="text-align: center; clear:both;"><a rel="license" href="http://creativecommons.org/licenses/by-sa/3.0/"
-                                              target="_blank"><img alt="Creative Commons License" src="/images/cc3.png"></a> <br>
+                                              target="_blank"><img alt="Creative Commons License" src="/static/images/cc3.png"></a> <br>
   <a rel="license" href="http://creativecommons.org/licenses/by-sa/3.0/" target="_blank"></a></p>
 </footer>
 </body></html>
